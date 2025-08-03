@@ -1,27 +1,12 @@
-/*
- * Copyright 2021-2023 Siphalor
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied.
- * See the License for the specific language governing
- * permissions and limitations under the License.
- */
+
 
 package de.siphalor.wanderingcollector;
 
-import net.fabricmc.fabric.api.util.NbtType;
+import com.mojang.serialization.Codec;
+
 import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
-import net.minecraft.nbt.NbtList;
+import net.minecraft.storage.ReadView;
+import net.minecraft.storage.WriteView;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -32,43 +17,25 @@ public class LostItemStorage {
 	private static final Random RANDOM = new Random();
 	private final List<ItemStack> stacks = new ArrayList<>();
 
-	public void read(NbtCompound parentNbt) {
+	// Hardcoded config values
+	private static final boolean COMBINE_LOST_STACKS = true;
+	private static final int MAX_LOST_STACK_AMOUNT = 64;
+	private static final PollMode OFFER_CREATION = PollMode.RANDOM;
+
+	// Codec for serialization
+	public static final Codec<List<ItemStack>> STACKS_CODEC = ItemStack.CODEC.listOf();
+
+	public void read(ReadView view) {
 		stacks.clear();
 
-		if (parentNbt.contains(WanderingCollector.LOST_STACKS_KEY)) {
-			if (parentNbt.contains(WanderingCollector.LOST_STACKS_KEY, NbtType.LIST)) {
-				readStacksFrom(parentNbt, WanderingCollector.LOST_STACKS_KEY);
-			} else if (parentNbt.contains(WanderingCollector.LOST_STACKS_KEY, NbtType.COMPOUND)) {
-				NbtCompound ownNbt = parentNbt.getCompound(WanderingCollector.LOST_STACKS_KEY);
-				if (ownNbt.contains(WanderingCollector.LOST_STACKS_KEY, NbtType.LIST)) {
-					readStacksFrom(ownNbt, "Stacks");
-				}
-			}
-		}
+		view.read(WanderingCollector.LOST_STACKS_KEY, STACKS_CODEC)
+				.ifPresent(stacks::addAll);
 	}
 
-	private void readStacksFrom(NbtCompound parentNbt, String key) {
-		NbtList listNbt = parentNbt.getList(key, NbtType.COMPOUND);
-		for (NbtElement stackNbt : listNbt) {
-			if (stackNbt instanceof NbtCompound) {
-				stacks.add(ItemStack.fromNbt((NbtCompound) stackNbt));
-			}
+	public void write(WriteView view) {
+		if (!stacks.isEmpty()) {
+			view.put(WanderingCollector.LOST_STACKS_KEY, STACKS_CODEC, stacks);
 		}
-	}
-
-	public void write(NbtCompound parentNbt) {
-		if (stacks.isEmpty()) {
-			return;
-		}
-
-		NbtCompound ownNbt = new NbtCompound();
-		parentNbt.put(WanderingCollector.LOST_STACKS_KEY, ownNbt);
-
-		NbtList listNbt = new NbtList();
-		for (ItemStack stack : stacks) {
-			listNbt.add(stack.writeNbt(new NbtCompound()));
-		}
-		ownNbt.put("Stacks", listNbt);
 	}
 
 	public boolean isEmpty() {
@@ -76,12 +43,12 @@ public class LostItemStorage {
 	}
 
 	public void add(ItemStack newStack) {
-		if (WCConfig.combineLostStacks && tryCombine(newStack)) {
+		if (COMBINE_LOST_STACKS && tryCombine(newStack)) {
 			return;
 		}
 
-		if (stacks.size() >= WCConfig.maxLostStackAmount) {
-			stacks.remove(0);
+		if (stacks.size() >= MAX_LOST_STACK_AMOUNT) {
+			stacks.removeFirst();
 		}
 		stacks.add(newStack);
 	}
@@ -91,7 +58,7 @@ public class LostItemStorage {
 		int space = 0;
 		List<ItemStack> equalStacks = new ArrayList<>();
 		for (ItemStack stack : stacks) {
-			if (ItemStack.canCombine(stack, newStack)) {
+			if (ItemStack.areItemsAndComponentsEqual(stack, newStack)) {
 				equalStacks.add(stack);
 				space += stack.getMaxCount() - stack.getCount();
 
@@ -119,7 +86,7 @@ public class LostItemStorage {
 	public Collection<ItemStack> poll(int stackCount) {
 		stackCount = Math.min(stackCount, stacks.size());
 		List<ItemStack> result = new ArrayList<>(stackCount);
-		switch (WCConfig.offerCreation) {
+		switch (OFFER_CREATION) {
 			case NEWEST: {
 				List<ItemStack> range = stacks.subList(stacks.size() - stackCount, stacks.size());
 				result.addAll(range);

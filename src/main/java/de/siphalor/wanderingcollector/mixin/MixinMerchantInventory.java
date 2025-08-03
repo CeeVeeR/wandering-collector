@@ -17,8 +17,7 @@
 
 package de.siphalor.wanderingcollector.mixin;
 
-import de.siphalor.wanderingcollector.util.IMerchantInventory;
-import de.siphalor.wanderingcollector.util.IWanderingTraderEntity;
+import de.siphalor.wanderingcollector.EntityInterfaces;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.village.Merchant;
 import net.minecraft.village.MerchantInventory;
@@ -29,7 +28,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
 @Mixin(MerchantInventory.class)
-public class MixinMerchantInventory implements IMerchantInventory {
+public class MixinMerchantInventory implements EntityInterfaces.MerchantInventory {
 	@Unique
 	private PlayerEntity player;
 
@@ -40,8 +39,8 @@ public class MixinMerchantInventory implements IMerchantInventory {
 
 	@Redirect(method = "updateOffers", at = @At(value = "INVOKE", target = "Lnet/minecraft/village/Merchant;getOffers()Lnet/minecraft/village/TradeOfferList;"))
 	public TradeOfferList getOffersRedirect(Merchant merchant) {
-		if (merchant instanceof IWanderingTraderEntity) {
-			return ((IWanderingTraderEntity) merchant).wandering_collector$getOffers(player);
+		if (merchant instanceof EntityInterfaces.WanderingTraderEntity) {
+			return ((EntityInterfaces.WanderingTraderEntity) merchant).wandering_collector$getOffers(player);
 		}
 		return merchant.getOffers();
 	}

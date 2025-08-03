@@ -1,7 +1,7 @@
 {
 	"schemaVersion": 1,
 	"id": "wandering_collector",
-	"version": "${version}",
+	"version": "2.0.0",
 	"name": "Wandering Collector",
 	"description": "Wandering Traders trade lost items back to the player.\nThe initial idea for this feature was suggested by SimplySarc in one of his videos.",
 	"authors": [
@@ -21,10 +21,7 @@
 			"de.siphalor.wanderingcollector.WanderingCollector"
 		],
 		"client": [],
-		"server": [],
-		"tweed4:config": [
-			"de.siphalor.wanderingcollector.WCConfig"
-		]
+		"server": []
 	},
 	"mixins": [
 		"wandering_collector.mixins.json"

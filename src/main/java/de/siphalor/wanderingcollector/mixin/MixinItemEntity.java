@@ -18,12 +18,14 @@
 package de.siphalor.wanderingcollector.mixin;
 
 import de.siphalor.wanderingcollector.WanderingCollector;
-import de.siphalor.wanderingcollector.util.IItemEntity;
+import de.siphalor.wanderingcollector.EntityInterfaces;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
-import net.minecraft.entity.ItemEntity;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.entity.damage.DamageSource;
-import net.minecraft.nbt.NbtCompound;
+import net.minecraft.storage.ReadView;
+import net.minecraft.storage.WriteView;
+import net.minecraft.util.Uuids;
 import net.minecraft.world.World;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -34,10 +36,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.UUID;
 
-@Mixin(ItemEntity.class)
-public abstract class MixinItemEntity extends Entity implements IItemEntity {
+@Mixin(net.minecraft.entity.ItemEntity.class)
+public abstract class MixinItemEntity extends Entity implements EntityInterfaces.ItemEntity {
 	@Unique
-	private static final String formerOwnerKey = WanderingCollector.MOD_ID + ":FormerOwner";
+	private static final String FORMER_OWNER_KEY = WanderingCollector.MOD_ID + ":FormerOwner";
 
 	@Unique
 	private UUID formerOwner;
@@ -56,17 +58,16 @@ public abstract class MixinItemEntity extends Entity implements IItemEntity {
 		this.formerOwner = playerUuid;
 	}
 
-	@Inject(method = "readCustomDataFromNbt", at = @At("RETURN"))
-	public void readCustomDataFromTag(NbtCompound tag, CallbackInfo ci) {
-		if (tag.containsUuid(formerOwnerKey)) {
-			formerOwner = tag.getUuid(formerOwnerKey);
-		}
+	@Inject(method = "readCustomData", at = @At("RETURN"))
+	public void readCustomDataInject(ReadView view, CallbackInfo ci) {
+		view.read(FORMER_OWNER_KEY, Uuids.INT_STREAM_CODEC)
+				.ifPresent(uuid -> formerOwner = uuid);
 	}
 
-	@Inject(method = "writeCustomDataToNbt", at = @At("RETURN"))
-	public void writeCustomDataFromTag(NbtCompound tag, CallbackInfo ci) {
+	@Inject(method = "writeCustomData", at = @At("RETURN"))
+	public void writeCustomDataInject(WriteView view, CallbackInfo ci) {
 		if (formerOwner != null) {
-			tag.putUuid(formerOwnerKey, formerOwner);
+			view.putNullable(FORMER_OWNER_KEY, Uuids.INT_STREAM_CODEC, formerOwner);
 		}
 	}
 
@@ -75,14 +76,14 @@ public abstract class MixinItemEntity extends Entity implements IItemEntity {
 			at = @At(value = "INVOKE", target = "Lnet/minecraft/entity/ItemEntity;discard()V", ordinal = 1)
 	)
 	public void tickInject(CallbackInfo callbackInfo) {
-		WanderingCollector.addStackToThrower((ItemEntity)(Object) this);
+		WanderingCollector.addStackToThrower((net.minecraft.entity.ItemEntity)(Object) this);
 	}
 
 	@Inject(
-			method = "damage",
+			method = "damage(Lnet/minecraft/server/world/ServerWorld;Lnet/minecraft/entity/damage/DamageSource;F)Z",
 			at = @At(value = "INVOKE", target = "Lnet/minecraft/entity/ItemEntity;discard()V")
 	)
-	public void onDeathInject(DamageSource source, float amount, CallbackInfoReturnable<Boolean> cir) {
-		WanderingCollector.addStackToThrower((ItemEntity)(Object) this);
+	public void onDeathInject(ServerWorld world, DamageSource source, float amount, CallbackInfoReturnable<Boolean> cir) {
+		WanderingCollector.addStackToThrower((net.minecraft.entity.ItemEntity)(Object) this);
 	}
 }

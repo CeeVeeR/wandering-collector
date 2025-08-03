@@ -1,75 +1,57 @@
-/*
- * Copyright 2021-2023 Siphalor
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied.
- * See the License for the specific language governing
- * permissions and limitations under the License.
- */
 
 package de.siphalor.wanderingcollector.mixin;
 
 import com.mojang.authlib.GameProfile;
 import de.siphalor.wanderingcollector.LostItemStorage;
-import de.siphalor.wanderingcollector.util.IItemEntity;
-import de.siphalor.wanderingcollector.util.IServerPlayerEntity;
+import de.siphalor.wanderingcollector.EntityInterfaces;
 import net.minecraft.entity.ItemEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NbtCompound;
+
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.storage.ReadView;
+import net.minecraft.storage.WriteView;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 
 @Mixin(ServerPlayerEntity.class)
-public abstract class MixinServerPlayerEntity extends PlayerEntity implements IServerPlayerEntity {
+public abstract class MixinServerPlayerEntity extends PlayerEntity implements EntityInterfaces.ServerPlayerEntity {
 	@Unique
 	private LostItemStorage lostItemStorage = new LostItemStorage();
 
-	public MixinServerPlayerEntity(World world, BlockPos blockPos, float f, GameProfile gameProfile) {
-		super(world, blockPos, f, gameProfile);
+	public MixinServerPlayerEntity(ServerWorld world, GameProfile profile) {
+		super(world, profile);
 	}
 
-
 	@Inject(
-			method = "dropItem",
-			at = @At(value = "INVOKE", target = "Lnet/minecraft/world/World;spawnEntity(Lnet/minecraft/entity/Entity;)Z"),
-			locals = LocalCapture.CAPTURE_FAILHARD
+			method = "dropItem(Lnet/minecraft/item/ItemStack;ZZ)Lnet/minecraft/entity/ItemEntity;",
+			at = @At(value = "RETURN")
 	)
-	public void onItemDropped(ItemStack itemStack, boolean thrownRandomly, boolean retainOwnership, CallbackInfoReturnable<ItemStack> cir, ItemEntity itemEntity) {
-		if (!retainOwnership) {
-			((IItemEntity) itemEntity).wanderingCollector$setFormerOwner(getUuid());
+	public void onItemDropped(ItemStack stack, boolean dropAtSelf, boolean retainOwnership, CallbackInfoReturnable<ItemEntity> cir) {
+		ItemEntity itemEntity = cir.getReturnValue();
+		if (itemEntity != null && !retainOwnership) {
+			((EntityInterfaces.ItemEntity) itemEntity).wanderingCollector$setFormerOwner(getUuid());
 		}
 	}
 
 	@Inject(method = "copyFrom", at = @At("RETURN"))
 	public void copyFromInject(ServerPlayerEntity other, boolean alive, CallbackInfo callbackInfo) {
-		lostItemStorage = ((IServerPlayerEntity) other).wandering_collector$getLostItemStorage();
+		lostItemStorage = ((EntityInterfaces.ServerPlayerEntity) other).wandering_collector$getLostItemStorage();
 	}
 
-	@Inject(method = "readCustomDataFromNbt", at = @At("RETURN"))
-	public void readCustomDataFromTagInject(NbtCompound tag, CallbackInfo callbackInfo) {
-		lostItemStorage.read(tag);
+	@Inject(method = "readCustomData", at = @At("RETURN"))
+	public void readCustomDataInject(ReadView view, CallbackInfo callbackInfo) {
+		lostItemStorage.read(view);
 	}
 
-	@Inject(method = "writeCustomDataToNbt", at = @At("RETURN"))
-	public void writeCustomDataToTagInject(NbtCompound tag, CallbackInfo callbackInfo) {
-		lostItemStorage.write(tag);
+	@Inject(method = "writeCustomData", at = @At("RETURN"))
+	public void writeCustomDataInject(WriteView view, CallbackInfo callbackInfo) {
+		lostItemStorage.write(view);
 	}
 
 	@Override

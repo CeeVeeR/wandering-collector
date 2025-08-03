@@ -17,8 +17,7 @@
 
 package de.siphalor.wanderingcollector;
 
-import de.siphalor.wanderingcollector.util.IItemEntity;
-import de.siphalor.wanderingcollector.util.IServerPlayerEntity;
+import de.siphalor.wanderingcollector.EntityInterfaces;
 import net.fabricmc.api.ModInitializer;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.ItemEntity;
@@ -34,23 +33,26 @@ import java.util.UUID;
 
 public class WanderingCollector implements ModInitializer {
 
-    public static Logger LOGGER = LogManager.getLogger();
+	public static Logger LOGGER = LogManager.getLogger();
 
-    public static final String MOD_ID = "wandering_collector";
-    public static final String MOD_NAME = "Wandering Collector";
+	public static final String MOD_ID = "wandering_collector";
+	public static final String MOD_NAME = "Wandering Collector";
 
-    public static final String LOST_STACKS_KEY = MOD_ID + ":" + "lost_stacks";
-    public static final String PLAYER_SPECIFIC_TRADES = MOD_ID + ":" + "player_specific_trades";
+	public static final String LOST_STACKS_KEY = MOD_ID + ":" + "lost_stacks";
+	public static final String PLAYER_SPECIFIC_TRADES = MOD_ID + ":" + "player_specific_trades";
 
-	public static final TagKey<Item> DENY_TAG = TagKey.of(RegistryKeys.ITEM, new Identifier(MOD_ID, "deny"));
+	public static final TagKey<Item> DENY_TAG = TagKey.of(RegistryKeys.ITEM, Identifier.of(MOD_ID, "deny"));
+
+	// Hardcoded config values
+	private static final boolean INCLUDE_DROPPED_STACKS = false;
 
 	@Override
-    public void onInitialize() {
-    }
+	public void onInitialize() {
+	}
 
-    public static void log(Level level, String message){
-        LOGGER.log(level, "["+MOD_NAME+"] " + message);
-    }
+	public static void log(Level level, String message){
+		LOGGER.log(level, "["+MOD_NAME+"] " + message);
+	}
 
 
 	public static void addStackToThrower(ItemEntity item) {
@@ -59,17 +61,17 @@ public class WanderingCollector implements ModInitializer {
 		}
 
 		Entity theFormerOwner = null;
-		if (WCConfig.includeDroppedStacks) {
+		if (INCLUDE_DROPPED_STACKS) {
 			theFormerOwner = item.getOwner();
 		}
-		if (theFormerOwner == null && item instanceof IItemEntity) {
-			UUID ownerUuid = ((IItemEntity) item).wanderingCollector$getFormerOwner();
-            if (ownerUuid != null) {
-                theFormerOwner = item.getWorld().getPlayerByUuid(ownerUuid);
-            }
+		if (theFormerOwner == null && item instanceof EntityInterfaces.ItemEntity) {
+			UUID ownerUuid = ((EntityInterfaces.ItemEntity) item).wanderingCollector$getFormerOwner();
+			if (ownerUuid != null) {
+				theFormerOwner = item.getWorld().getPlayerByUuid(ownerUuid);
+			}
 		}
-		if (theFormerOwner instanceof IServerPlayerEntity) {
-            ((IServerPlayerEntity) theFormerOwner).wandering_collector$getLostItemStorage().add(item.getStack());
+		if (theFormerOwner instanceof EntityInterfaces.ServerPlayerEntity) {
+			((EntityInterfaces.ServerPlayerEntity) theFormerOwner).wandering_collector$getLostItemStorage().add(item.getStack());
 		}
 	}
 }

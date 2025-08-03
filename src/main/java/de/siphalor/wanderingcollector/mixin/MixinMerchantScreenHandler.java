@@ -17,8 +17,7 @@
 
 package de.siphalor.wanderingcollector.mixin;
 
-import de.siphalor.wanderingcollector.util.IMerchantInventory;
-import de.siphalor.wanderingcollector.util.IWanderingTraderEntity;
+import de.siphalor.wanderingcollector.EntityInterfaces;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.screen.MerchantScreenHandler;
 import net.minecraft.screen.ScreenHandler;
@@ -47,13 +46,13 @@ public abstract class MixinMerchantScreenHandler extends ScreenHandler {
 
 	@Inject(method = "<init>(ILnet/minecraft/entity/player/PlayerInventory;Lnet/minecraft/village/Merchant;)V", at = @At("RETURN"))
 	public void onInit(int syncId, PlayerInventory playerInventory, Merchant merchant, CallbackInfo callbackInfo) {
-		((IMerchantInventory) merchantInventory).wandering_collector$setPlayer(playerInventory.player);
+		((EntityInterfaces.MerchantInventory) merchantInventory).wandering_collector$setPlayer(playerInventory.player);
 	}
 
 	@Inject(method = "getRecipes", at = @At("HEAD"), cancellable = true)
 	public void getOffersInject(CallbackInfoReturnable<TradeOfferList> cir) {
-		if (merchant instanceof IWanderingTraderEntity) {
-			cir.setReturnValue(((IWanderingTraderEntity) merchant).wandering_collector$getOffers(merchant.getCustomer()));
+		if (merchant instanceof EntityInterfaces.WanderingTraderEntity) {
+			cir.setReturnValue(((EntityInterfaces.WanderingTraderEntity) merchant).wandering_collector$getOffers(merchant.getCustomer()));
 		}
 	}
 }
